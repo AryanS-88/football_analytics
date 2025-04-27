@@ -1,1 +1,12 @@
-ultralytics
+
+# Ultralytics (YOLOv8)
+ultralytics==8.2.14
+
+# Video and Image Processing
+opencv-python==4.9.0.80
+opencv-python-headless==4.9.0.80
+
+# Utility Libraries
+tqdm==4.66.2
+matplotlib==3.8.4
+numpy==1.26.4
