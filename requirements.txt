@@ -10,3 +10,6 @@ opencv-python-headless==4.9.0.80
 tqdm==4.66.2
 matplotlib==3.8.4
 numpy==1.26.4
+
+#supervision 
+supervision
