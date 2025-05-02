@@ -1,3 +1,7 @@
 football-players-detection-14
 models 
 args.yaml
+yolov5xu.pt
+yolov8x.pt
+runs
+output_videos
