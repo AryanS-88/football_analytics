@@ -1,0 +1,1 @@
+tracks = my_tracker.get_object_tracks(video_frames,read_from_stub=True,stub_path='stubs/tracks_stubs.pkl' )
