@@ -7,11 +7,15 @@ def main():
 
     # Initialize tracker
     Tracker = tracker("models/best.pt")
-    tracks = Tracker.get_object_tracks(video_frames,read_from_stub=True,stub_path="stubs/track_stubs.pkl")
+    tracks = Tracker.get_object_tracks(video_frames,
+                                       read_from_stub=True,
+                                       stub_path="stubs/track_stubs.pkl")
+
+    # Draw object tracks
+    output_video_frames = Tracker.draw_annotation(video_frames, tracks)
 
     # Save video
-    save_video(video_frames, "output_videos/output_video.avi")
+    save_video(output_video_frames, "output_videos/output_video.avi")
 
 if __name__ == "__main__":
     main()
-
