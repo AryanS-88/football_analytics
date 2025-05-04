@@ -2,6 +2,7 @@ from utils import read_video, save_video
 from trackers import tracker
 import cv2
 import os
+from team_assigner import TeamAssigner
 
 def main():
     # Read video 
@@ -12,19 +13,20 @@ def main():
     tracks = Tracker.get_object_tracks(video_frames,
                                        read_from_stub=True,
                                        stub_path="stubs/track_stubs.pkl")
+    
+    #assign player teams 
+    team_assigner = TeamAssigner()
+    team_assigner.assign_team_color(video_frames[0], 
+                                    tracks['players'][0])
+    
+    for frame_num, player_track in enumerate(tracks['players']):
+        for player_id, track in player_track.items():
+            team = team_assigner.get_player_team(video_frames[frame_num],   
+                                                 track['bbox'],
+                                                 player_id)
+            tracks['players'][frame_num][player_id]['team'] = team 
+            tracks['players'][frame_num][player_id]['team_color'] = team_assigner.team_colors[team]
 
-
-    # # Save cropped images of players in the first frame
-    # for track_id, player in tracks['players'][0].items():
-    #     bbox = player["bbox"]  # Extract the actual bbox list
-    #     frame = video_frames[0]
-
-    #     # Convert to int to avoid slicing errors
-    #     x1, y1, x2, y2 = map(int, bbox)
-    #     cropped_image = frame[y1:y2, x1:x2]
-
-    #     # Save image
-    #     cv2.imwrite(f"output_videos/cropped_image.jpg", cropped_image)
 
     # Draw object tracks
     output_video_frames = Tracker.draw_annotation(video_frames, tracks)
