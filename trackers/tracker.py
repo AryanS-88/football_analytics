@@ -5,10 +5,11 @@ import os
 import sys
 import cv2
 import numpy as np
+import pandas as pd 
 
 # Add utility functions directory to path
 sys.path.append('../')
-from utils import get_centre_of_bbox, get_bbox_width
+from utils import get_center_of_bbox, get_bbox_width
 
 class tracker:
     def __init__(self, model_path):
@@ -17,79 +18,89 @@ class tracker:
         # Initialize ByteTrack for object tracking
         self.tracker = sv.ByteTrack()
 
+    def interpolate_ball_position(self,ball_positions):
+        ball_positions=[x.get(1,{}).get('bbox',[])for x in ball_positions]
+        df_ball_positions=pd.DataFrame(ball_positions,columns=['x1','y1','x2','y2'])
+
+        #interpolate missing values
+        df_ball_positions=df_ball_positions.interpolate()
+        df_ball_positions = df_ball_positions.bfill() #handling edge case where the first few frames might not have the ball in clear sight 
+
+        ball_positions = [{1:{'bbox':x}}for x in df_ball_positions.to_numpy().tolist()]
+
+        return ball_positions 
+
+         
+
     def detect_frames(self, frames):
-        # Run YOLO model in batches
-        batch_size = 20
-        detections = []
-        for i in range(0, len(frames), batch_size):
-            detections_batch = self.model.predict(frames[i:i+batch_size], conf=0.1)
+        batch_size=20 
+        detections = [] 
+        for i in range(0,len(frames),batch_size):
+            detections_batch = self.model.predict(frames[i:i+batch_size],conf=0.1)
             detections += detections_batch
         return detections
 
     def get_object_tracks(self, frames, read_from_stub=False, stub_path=None):
-        # Load tracks from file if available
-        if read_from_stub and stub_path and os.path.exists(stub_path):
-            with open(stub_path, 'rb') as f:
-                return pickle.load(f)
+        
+        if read_from_stub and stub_path is not None and os.path.exists(stub_path):
+            with open(stub_path,'rb') as f:
+                tracks = pickle.load(f)
+            return tracks
 
-        # Detect objects in frames
         detections = self.detect_frames(frames)
 
-        # Initialize tracking dictionary
-        tracks = {
-            "players": [],
-            "referees": [],
-            "ball": [],
+        tracks={
+            "players":[],
+            "referees":[],
+            "ball":[]
         }
 
         for frame_num, detection in enumerate(detections):
             cls_names = detection.names
-            cls_names_inv = {v: k for k, v in cls_names.items()}
+            cls_names_inv = {v:k for k,v in cls_names.items()}
 
-            # Convert detections to Supervision format
-            detection_supervison = sv.Detections.from_ultralytics(detection)
+            # Covert to supervision Detection format
+            detection_supervision = sv.Detections.from_ultralytics(detection)
 
-            # Convert 'goalkeeper' label to 'player'
-            for i, cls_id in enumerate(detection_supervison.class_id):
-                if cls_names[cls_id] == 'goalkeeper':
-                    detection_supervison.class_id[i] = cls_names_inv["player"]
+            # Convert GoalKeeper to player object
+            for object_ind , class_id in enumerate(detection_supervision.class_id):
+                if cls_names[class_id] == "goalkeeper":
+                    detection_supervision.class_id[object_ind] = cls_names_inv["player"]
 
-            # Apply ByteTrack tracking
-            detection_with_tracks = self.tracker.update_with_detections(detection_supervison)
+            # Track Objects
+            detection_with_tracks = self.tracker.update_with_detections(detection_supervision)
 
-            # Initialize frame-specific dictionaries
             tracks["players"].append({})
             tracks["referees"].append({})
             tracks["ball"].append({})
 
-            # Store player and referee tracks
-            for det in detection_with_tracks:
-                bbox = det[0].tolist()
-                cls_id = det[3]
-                track_id = det[4]
+            for frame_detection in detection_with_tracks:
+                bbox = frame_detection[0].tolist()
+                cls_id = frame_detection[3]
+                track_id = frame_detection[4]
 
                 if cls_id == cls_names_inv['player']:
-                    tracks["players"][frame_num][track_id] = {"bbox": bbox}
-                elif cls_id == cls_names_inv['referee']:
-                    tracks["referees"][frame_num][track_id] = {"bbox": bbox}
+                    tracks["players"][frame_num][track_id] = {"bbox":bbox}
+                
+                if cls_id == cls_names_inv['referee']:
+                    tracks["referees"][frame_num][track_id] = {"bbox":bbox}
+            
+            for frame_detection in detection_supervision:
+                bbox = frame_detection[0].tolist()
+                cls_id = frame_detection[3]
 
-            # Store ball detections (no tracking)
-            for det in detection_supervison:
-                bbox = det[0].tolist()
-                cls_id = det[3]
                 if cls_id == cls_names_inv['ball']:
-                    tracks["ball"][frame_num][1] = {"bbox": bbox}
+                    tracks["ball"][frame_num][1] = {"bbox":bbox}
 
-        # Save tracking data to stub path
-        if stub_path:
-            with open(stub_path, 'wb') as f:
-                pickle.dump(tracks, f)
+        if stub_path is not None:
+            with open(stub_path,'wb') as f:
+                pickle.dump(tracks,f)
 
         return tracks
 
     def draw_ellipse(self,frame,bbox,color,track_id=None):
         y2 = int(bbox[3])
-        x_center, _ =get_centre_of_bbox(bbox)
+        x_center, _ = get_center_of_bbox(bbox)
         width = get_bbox_width(bbox)
 
         cv2.ellipse(
@@ -135,7 +146,7 @@ class tracker:
         return frame
     def draw_traingle(self,frame,bbox,color):
         y= int(bbox[1])
-        x,_ = get_centre_of_bbox(bbox)
+        x,_ = get_center_of_bbox(bbox)
 
         triangle_points = np.array([
             [x,y],
@@ -173,3 +184,5 @@ class tracker:
             output_video_frames.append(frame)
 
         return output_video_frames
+
+    
