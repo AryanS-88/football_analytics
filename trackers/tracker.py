@@ -157,8 +157,25 @@ class tracker:
         cv2.drawContours(frame, [triangle_points],0,(0,0,0), 2)
 
         return frame
+    def team_ball_control(self,frame,frame_num,team_ball_control):
+        overlay=frame.copy()
+        cv2.rectangle(overlay,(1350,850),(1900,970),(255,255,255),-1)
+        alpha=0.4
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
-    def draw_annotation(self, video_frames, tracks):
+        team_ball_control_till_frame = team_ball_control[:frame_num+1]
+        #get ball control for each team 
+        team_1_num_frames=team_ball_control_till_frame[team_ball_control_till_frame==1].shape[0]
+        team_2_num_frames=team_ball_control_till_frame[team_ball_control_till_frame==2].shape[0]
+        team_1 =team_1_num_frames/(team_1_num_frames+team_2_num_frames)
+        team_2 =team_2_num_frames/(team_1_num_frames+team_2_num_frames)
+
+        cv2.putText(frame,f"Team 1 Ball Control:{team_1*100:.2f}%",(1400,900 ),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,0),3) 
+        cv2.putText(frame,f"Team 2 Ball Control:{team_2*100:.2f}%",(1400,950 ),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,0),3) 
+
+        return frame
+
+    def draw_annotation(self, video_frames, tracks,team_ball_control):
         # Overlay tracked player annotations on video frames
         output_video_frames = []
         for frame_num, frame in enumerate(video_frames):
@@ -183,7 +200,9 @@ class tracker:
             # Draw Ball
             for track_id,ball in ball_dict.items():
                 frame = self.draw_traingle(frame, ball["bbox"], (255, 0, 0))
-
+            
+            #draw team ball control 
+            frame =self.team_ball_control(frame,frame_num,team_ball_control)
             output_video_frames.append(frame)
 
         return output_video_frames
