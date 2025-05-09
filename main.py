@@ -3,6 +3,7 @@ from trackers import tracker
 import cv2
 import os
 from team_assigner import TeamAssigner
+from player_ball_assigner import PlayerBallAssigner
 
 def main():
     # Read video 
@@ -20,7 +21,7 @@ def main():
     #assign player teams 
     team_assigner = TeamAssigner()
     team_assigner.assign_team_color(video_frames[0], 
-                                    tracks['players'][0])
+                                    tracks['players'][1])
     
     for frame_num, player_track in enumerate(tracks['players']):
         for player_id, track in player_track.items():
@@ -30,6 +31,15 @@ def main():
             tracks['players'][frame_num][player_id]['team'] = team 
             tracks['players'][frame_num][player_id]['team_color'] = team_assigner.team_colors[team]
 
+
+    # assign ball Aquisition
+    player_ball_assigner = PlayerBallAssigner()
+    for frame_num, player_track in enumerate(tracks['players']):
+        ball_bbox = tracks['ball'][frame_num][1]['bbox']
+        assigned_player = player_ball_assigner.assign_ball_to_player(player_track,ball_bbox)
+
+        if assigned_player != -1:
+            tracks['players'][frame_num][assigned_player]['has_ball'] = True
 
     # Draw object tracks
     output_video_frames = Tracker.draw_annotation(video_frames, tracks)
