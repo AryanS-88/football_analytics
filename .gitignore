@@ -5,4 +5,4 @@ yolov5xu.pt
 yolov8x.pt
 runs
 output_videos
-track_stubs.pkl
+stubs
